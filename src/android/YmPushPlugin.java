@@ -61,7 +61,7 @@ public class YmPushPlugin extends CordovaPlugin {
                     Log.e("x", "zl");
                     printKeyValue();
                     ymPush();
-                    getDeviceToken();
+                    
                 }
             });
 
@@ -133,7 +133,7 @@ public class YmPushPlugin extends CordovaPlugin {
 
         //btnEnable.setImageResource(mPushAgent.isEnabled() ? R.drawable.open_button : R.drawable.close_button);
         // copyToClipBoard();
-
+        getDeviceToken();
         Log.i("YmPlugin", "updateStatus:" + String.format("enabled:%s  isRegistered:%s",
                 mPushAgent.isEnabled(), mPushAgent.isRegistered()));
         Log.i("YmPlugin", "=============================");
