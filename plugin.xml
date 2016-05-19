@@ -5,13 +5,13 @@
       version="1.0.0">
     <name>ympush</name>
      <js-module src="www/ympush.js" name="YmPushPlugin">
-    <clobbers target="ympush" />
+    <clobbers target="ym_push" />
   </js-module>
 
 
     <platform name="android">
         <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="ympush" >
+            <feature name="YmPush" >
                 <param name="android-package" value="org.apache.cordova.ympush.YmPushPlugin"/>
             </feature>
         </config-file>

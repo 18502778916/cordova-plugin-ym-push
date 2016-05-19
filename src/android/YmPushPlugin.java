@@ -38,14 +38,16 @@ public class YmPushPlugin extends CordovaPlugin {
     private PushAgent mPushAgent;
     CordovaInterface cordovaInterface;
     List<String> ymKey=new ArrayList<String>();
+    List<String> tags=new ArrayList<String>();
+    String device_token;
 
 
     @Override
-    public boolean execute(String action, final JSONArray args, CallbackContext callbackContext) throws JSONException {
+    public boolean execute(String action, final JSONArray args, final CallbackContext callbackContext) throws JSONException {
         this.callbackContext=callbackContext;
         cordovaInterface=this.cordova;
         mPushAgent = PushAgent.getInstance(cordovaInterface.getActivity());
-        if ("ympush".equals(action)){
+        if ("startWork".equals(action)){
             Log.e("x",""+args.get(0));
             if(args!=null){
                 JSONArray jsonArray=args.getJSONArray(0);
@@ -61,30 +63,91 @@ public class YmPushPlugin extends CordovaPlugin {
                     Log.e("x", "zl");
                     printKeyValue();
                     ymPush();
-                    
+
+
                 }
             });
 
+            return true;
+        }else if("setTag".equals(action)){
+            if(args!=null){
+                JSONArray jsonArray=args.getJSONArray(0);
+                setTags(jsonArray.getString(0));
+            }
+            return true;
+        }
+        else if("deleteTag".equals(action)){
+            if(args!=null){
+                JSONArray jsonArray=args.getJSONArray(0);
+                deleteTags(jsonArray.getString(0));
+            }
             return true;
         }
         else {
             return false;
         }
     }
+    public void deleteTags(String tag){
+        device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
+        Log.e("device_token",""+device_token);
+        PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                "删除TAG失败");
+        if(device_token!=""){
+            try {
+                mPushAgent.getTagManager().delete(tag);
+                mPlugin = new PluginResult(PluginResult.Status.OK,
+                        "删除TAG成功");
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mPlugin.setKeepCallback(true);
+        callbackContext.sendPluginResult(mPlugin);
+    }
+
+
+    public void setTags(String tag){
+        device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
+        Log.e("device_token",""+device_token);
+        PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                "设置TAG失败");
+        if(device_token!=""){
+            try {
+                mPushAgent.getTagManager().add(tag);
+                mPlugin = new PluginResult(PluginResult.Status.OK,
+                        "设置TAG成功");
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        mPlugin.setKeepCallback(true);
+        callbackContext.sendPluginResult(mPlugin);
+    }
+
     public void getDeviceToken(){
-        String device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
+        device_token= UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
+
         PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
                 "{\""+"device_token\""+":"+"\""+device_token+"\"}");
         mPlugin.setKeepCallback(true);
         callbackContext.sendPluginResult(mPlugin);
+
     }
 
     public void ymPush(){
         mPushAgent.setDebugMode(true);
         mPushAgent.setMessageHandler(messageHandler);
         mPushAgent.setNotificationClickHandler(notificationClickHandler);
-        String device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
+        device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
         Log.e("device_token",""+device_token);
+        if(device_token!=""){
+            PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                    "{\""+"device_token\""+":"+"\""+device_token+"\"}");
+            mPlugin.setKeepCallback(true);
+            callbackContext.sendPluginResult(mPlugin);
+        }
 //		mPushAgent.setPushCheck(true);    //默认不检查集成配置文件
 //		mPushAgent.setLocalNotificationIntervalLimit(false);  //默认本地通知间隔最少是10分钟
 
@@ -104,7 +167,7 @@ public class YmPushPlugin extends CordovaPlugin {
 
         //开启推送并设置注册的回调处理
         mPushAgent.enable(mRegisterCallback);
-
+        mPushAgent.setAppkeyAndSecret(ymKey.get(0), ymKey.get(1));
     }
 
     private void printKeyValue() {
@@ -117,6 +180,13 @@ public class YmPushPlugin extends CordovaPlugin {
             for (String key : keySet) {
                 String value = bun.getString(key);
                 Log.i("YmPlugin", key + ":" + value);
+                //PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                //   {"msg": { "key": " value"}}
+                //"{\""+"msg\""+":"+"{\""+key+"\""+":"+"\""+value+"\"}}");
+                PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                        "{\""+key+"\""+":"+"\""+value+"\"}");
+                mPlugin.setKeepCallback(true);
+                callbackContext.sendPluginResult(mPlugin);
             }
         }
 
@@ -200,10 +270,10 @@ public class YmPushPlugin extends CordovaPlugin {
                     boolean isClickOrDismissed = true;
                     if(isClickOrDismissed) {
                         //自定义消息的点击统计
-                        UTrack.getInstance(cordovaInterface.getActivity().getApplicationContext()).trackMsgClick(msg);
+                        UTrack.getInstance(context).trackMsgClick(msg);
                     } else {
                         //自定义消息的忽略统计
-                        UTrack.getInstance(cordovaInterface.getActivity().getApplicationContext()).trackMsgDismissed(msg);
+                        UTrack.getInstance(context).trackMsgDismissed(msg);
                     }
                     Log.e("xxx", "z");
                     PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
@@ -246,7 +316,12 @@ public class YmPushPlugin extends CordovaPlugin {
     UmengNotificationClickHandler notificationClickHandler = new UmengNotificationClickHandler(){
         @Override
         public void dealWithCustomAction(Context context, UMessage msg) {
-            Toast.makeText(context, msg.custom, Toast.LENGTH_LONG).show();
+//            Intent i = new Intent();
+//            i.setClassName("com.example.newtest",
+//                    "com.example.newtest.MainActivity");
+//            cordova.getActivity().startActivity(i);
+            Log.e("xxx","xxxx");
+            Toast.makeText(cordovaInterface.getActivity().getApplicationContext(), msg.custom, Toast.LENGTH_LONG).show();
         }
     };
 
