@@ -1,7 +1,8 @@
 package org.apache.cordova.ympush;
 
-import android.app.Notification;
+import android.app.ActivityManager;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -12,8 +13,6 @@ import com.umeng.message.IUmengRegisterCallback;
 import com.umeng.message.IUmengUnregisterCallback;
 import com.umeng.message.MsgConstant;
 import com.umeng.message.PushAgent;
-import com.umeng.message.UTrack;
-import com.umeng.message.UmengMessageHandler;
 import com.umeng.message.UmengNotificationClickHandler;
 import com.umeng.message.UmengRegistrar;
 import com.umeng.message.entity.UMessage;
@@ -138,7 +137,7 @@ public class YmPushPlugin extends CordovaPlugin {
 
     public void ymPush(){
         mPushAgent.setDebugMode(true);
-        mPushAgent.setMessageHandler(messageHandler);
+//        mPushAgent.setMessageHandler(messageHandler);
         mPushAgent.setNotificationClickHandler(notificationClickHandler);
         device_token = UmengRegistrar.getRegistrationId(cordovaInterface.getActivity());
         Log.e("device_token",""+device_token);
@@ -184,9 +183,10 @@ public class YmPushPlugin extends CordovaPlugin {
                 //   {"msg": { "key": " value"}}
                 //"{\""+"msg\""+":"+"{\""+key+"\""+":"+"\""+value+"\"}}");
                 PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
-                        "{\""+key+"\""+":"+"\""+value+"\"}");
+                        "{\""+"msg\""+":"+"\""+value+"\"}");
                 mPlugin.setKeepCallback(true);
                 callbackContext.sendPluginResult(mPlugin);
+
             }
         }
 
@@ -254,73 +254,47 @@ public class YmPushPlugin extends CordovaPlugin {
         }
     };
 
-    UmengMessageHandler messageHandler = new UmengMessageHandler(){
-        /**
-         * 参考集成文档的1.6.3
-         * http://dev.umeng.com/push/android/integration#1_6_3
-         * */
-        @Override
-        public void dealWithCustomMessage(final Context context, final UMessage msg) {
-            new Handler().post(new Runnable() {
-
-                @Override
-                public void run() {
-                    // TODO Auto-generated method stub
-                    // 对自定义消息的处理方式，点击或者忽略
-                    boolean isClickOrDismissed = true;
-                    if(isClickOrDismissed) {
-                        //自定义消息的点击统计
-                        UTrack.getInstance(context).trackMsgClick(msg);
-                    } else {
-                        //自定义消息的忽略统计
-                        UTrack.getInstance(context).trackMsgDismissed(msg);
-                    }
-                    Log.e("xxx", "z");
-                    PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
-                            "{\""+"msg\""+":"+"\""+msg.custom+"\"}");
-                    mPlugin.setKeepCallback(true);
-                    callbackContext.sendPluginResult(mPlugin);
-                    Toast.makeText(context, msg.custom, Toast.LENGTH_LONG).show();
-                }
-            });
-        }
-
-        /**
-         * 参考集成文档的1.6.4
-         * http://dev.umeng.com/push/android/integration#1_6_4
-         * */
-        @Override
-        public Notification getNotification(Context context,
-                                            UMessage msg) {
-//				switch (msg.builder_id) {
-//				case 1:
-//					NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-//					RemoteViews myNotificationView = new RemoteViews(context.getPackageName(), R.layout.notification_view);
-//					myNotificationView.setTextViewText(R.id.notification_title, msg.title);
-//					myNotificationView.setTextViewText(R.id.notification_text, msg.text);
-//					myNotificationView.setImageViewBitmap(R.id.notification_large_icon, getLargeIcon(context, msg));
-//					myNotificationView.setImageViewResource(R.id.notification_small_icon, getSmallIconId(context, msg));
-//					builder.setContent(myNotificationView)
-//                           .setSmallIcon(getSmallIconId(context, msg))
-//					       .setTicker(msg.ticker)
-//					       .setAutoCancel(true);
-//					return builder.build();
-//
-//				default:
-//					//默认为0，若填写的builder_id并不存在，也使用默认。
-//					return super.getNotification(context, msg);
-//				}
-            return super.getNotification(context, msg);
-        }
-    };
     UmengNotificationClickHandler notificationClickHandler = new UmengNotificationClickHandler(){
         @Override
         public void dealWithCustomAction(Context context, UMessage msg) {
-//            Intent i = new Intent();
-//            i.setClassName("com.example.newtest",
-//                    "com.example.newtest.MainActivity");
-//            cordova.getActivity().startActivity(i);
-            Log.e("xxx","xxxx");
+
+            //用于判断app状态
+            ActivityManager activityManager = (ActivityManager) context
+                    .getSystemService(Context.ACTIVITY_SERVICE);
+            List<ActivityManager.RunningAppProcessInfo> appProcesses = activityManager
+                    .getRunningAppProcesses();
+            for (ActivityManager.RunningAppProcessInfo appProcess : appProcesses) {
+                if (appProcess.processName.equals(context.getPackageName())) {
+                /*
+                BACKGROUND=400 EMPTY=500 FOREGROUND=100
+                GONE=1000 PERCEPTIBLE=130 SERVICE=300 ISIBLE=200
+                 */
+                    Log.i(context.getPackageName(), "此appimportace ="
+                            + appProcess.importance
+                            + ",context.getClass().getName()="
+                            + context.getClass().getName());
+                    if (appProcess.importance != ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+                        Log.i(context.getPackageName(), "处于后台"
+                                + appProcess.processName);
+                        Log.e("x","处于后台");
+                    } else {
+                        Log.i(context.getPackageName(), "处于前台"
+                                + appProcess.processName);
+                        Intent intent = new Intent(context, cordovaInterface.getActivity().getClass());
+                        //将MainAtivity的launchMode设置成SingleTask, 或者在下面flag中加上Intent.FLAG_CLEAR_TOP,
+                        //如果Task栈中有MainActivity的实例，就会把它移到栈顶，把在它之上的Activity都清理出栈，
+                        //如果Task栈不存在MainActivity实例，则在栈顶创建
+                        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(intent);
+                        Log.e("x","处于前台");
+                    }
+                }
+            }
+            Log.e("msg",msg.custom);
+            PluginResult mPlugin = new PluginResult(PluginResult.Status.OK,
+                    "{\""+"msg\""+":"+"\""+msg.custom+"\"}");
+            mPlugin.setKeepCallback(true);
+            callbackContext.sendPluginResult(mPlugin);
             Toast.makeText(cordovaInterface.getActivity().getApplicationContext(), msg.custom, Toast.LENGTH_LONG).show();
         }
     };

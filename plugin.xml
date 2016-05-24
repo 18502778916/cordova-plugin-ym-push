@@ -145,6 +145,7 @@
             android:exported="false" />
              </config-file>
         <source-file src="src/android/YmPushPlugin.java" target-dir="src/org/apache/cordova/ympush" />
+        <source-file src="src/android/MyApplication.java" target-dir="src/org/apache/cordova/ympush" />
         <source-file src="libs/arm64-v8a/libcocklogic.so" target-dir="libs/arm64-v8a" />
         <source-file src="libs/arm64-v8a/libtnet-2.1.20.1-agoo.so" target-dir="libs/arm64-v8a" />
         <source-file src="libs/armeabi/libcocklogic.so" target-dir="libs/armeabi" />
